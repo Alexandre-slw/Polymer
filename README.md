@@ -19,7 +19,7 @@ Rendering with a radius of 32 chunks in a very dense area.
 ### Running
 Main development is done on Windows. It can run on Linux, but not tested much.  
 
-- Requires `blocks-1.21.4.json` that is generated from running Minecraft with a [certain flag](https://minecraft.fandom.com/wiki/Tutorials/Running_the_data_generator) or from the [polymer release page](https://github.com/atxi/Polymer/releases).
+- Requires `blocks-1.21.4.json` that is generated from running Minecraft with a [certain flag](https://minecraft.wiki/w/Tutorial:Running_the_data_generator) or from the [polymer release page](https://github.com/atxi/Polymer/releases).
 - Requires compiled shaders. Get them from the release page or read the building section below if manually building.
 - Requires an internet connection on first launch so it can download the necessary assets.
   
