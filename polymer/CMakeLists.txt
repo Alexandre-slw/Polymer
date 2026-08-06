@@ -38,3 +38,9 @@ endif()
 
 target_include_directories(polymer PRIVATE ${CURL_INCLUDE_DIRS})
 target_link_libraries(polymer PRIVATE volk::volk_headers CURL::libcurl)
+
+add_custom_command(TARGET polymer POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${CMAKE_SOURCE_DIR}/shaders" "$<TARGET_FILE_DIR:polymer>/shaders"
+  COMMENT "Copying shaders to output directory")
+
