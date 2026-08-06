@@ -1,16 +1,24 @@
 #include <polymer/gamestate.h>
 
-#include <lib/json.h>
-#include <lib/stb_image.h>
-#include <polymer/math.h>
-#include <polymer/zip_archive.h>
 
-#include <polymer/render/block_mesher.h>
 
-#include <assert.h>
-#include <math.h>
-#include <stdio.h>
 #include <string.h>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <volk.h>
+#include <vulkan/vulkan_core.h>
+#include "input.h"
+#include "memory.h"
+#include "protocol.h"
+#include "render/chunk_renderer.h"
+#include "render/font_renderer.h"
+#include "render/render.h"
+#include "render/swapchain.h"
+#include "types.h"
+#include "world/chunk.h"
+#include <iostream>
+using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
 using polymer::render::RenderLayer;
@@ -19,6 +27,7 @@ using polymer::world::ChunkSection;
 using polymer::world::ChunkSectionInfo;
 using polymer::world::kChunkCacheSize;
 using polymer::world::kChunkColumnCount;
+using polymer::world::BlockState;
 
 namespace polymer {
 
@@ -192,6 +201,9 @@ void GameState::ProcessMovement(float dt, InputState* input) {
 
   Vector3f movement;
 
+  // gravity
+  movement += Vector3f{0, -0.5, 0};
+
   if (input->forward) {
     movement += camera.GetForward();
   }
@@ -221,13 +233,28 @@ void GameState::ProcessMovement(float dt, InputState* input) {
   }
 
   if (movement.LengthSq() > 0) {
-    float modifier = kMoveSpeed;
+    if (movement.Length() > 1) {
+      movement = NormalizeXZ(movement);
+    }
 
+    float modifier = kMoveSpeed;
     if (input->sprint) {
       modifier *= kSprintModifier;
     }
 
-    camera.position += Normalize(movement) * (dt * modifier);
+    movement *= (dt * modifier);
+
+    float height = 1.8;
+
+    auto pos = camera.position + movement;
+
+    BlockState* state = world.GetBlockAt({(int)floorf(pos.x), (int)floorf(pos.y - height), (int)floorf(pos.z)});
+
+    if (state && state->id != BLOCK_AIR) {
+      pos.y = (int)floorf(pos.y - height) + 1 + height;
+    }
+
+    camera.position = pos;
   }
 
   position_sync_timer += dt;

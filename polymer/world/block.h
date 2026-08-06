@@ -10,6 +10,8 @@ namespace world {
 
 enum class BlockFace { Down, Up, North, South, West, East };
 
+constexpr int BLOCK_AIR = 0;
+
 inline BlockFace GetOppositeFace(BlockFace face) {
   switch (face) {
   case BlockFace::Down:

@@ -290,5 +290,46 @@ void World::FreeMeshes() {
   }
 }
 
+BlockState* World::GetBlockAt(Vector3i pos) {
+
+  s32 chunk_x = (s32)floorf(pos.x / 16.0f);
+  s32 chunk_z = (s32)floorf(pos.z / 16.0f);
+  s32 chunk_y = (s32)floorf(pos.y / 16.0f) + 4;
+
+  u32 x_index = GetChunkCacheIndex(chunk_x);
+  u32 z_index = GetChunkCacheIndex(chunk_z);
+
+  ChunkSection* section = &chunks[z_index][x_index];
+
+  if (!section->info->loaded || (section->info->x != chunk_x || section->info->z != chunk_z)) {
+    return nullptr;
+  }
+
+  s32 relative_x = pos.x % 16;
+  s32 relative_y = pos.y % 16;
+  s32 relative_z = pos.z % 16;
+
+  if (relative_x < 0) {
+    relative_x += 16;
+  }
+
+  if (relative_y < 0) {
+    relative_y += 16;
+  }
+
+  if (relative_z < 0) {
+    relative_z += 16;
+  }
+
+  u32 bid = 0;
+
+  if (section->chunks[chunk_y]) {
+    bid = section->chunks[chunk_y]->blocks[relative_y][relative_z][relative_x];
+  }
+
+  
+  return &block_registry.states[bid];
+}
+
 } // namespace world
 } // namespace polymer

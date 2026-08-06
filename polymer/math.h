@@ -370,6 +370,16 @@ inline Vector3f Normalize(const Vector3f& v) {
   return v;
 }
 
+inline Vector3f NormalizeXZ(const Vector3f& v) {
+  float length = v.Length();
+
+  if (length > 0) {
+    return Vector3f(v.x / length, v.y, v.z / length);
+  }
+
+  return v;
+}
+
 struct Vector3i {
   union {
     struct {

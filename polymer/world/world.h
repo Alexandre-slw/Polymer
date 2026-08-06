@@ -59,6 +59,8 @@ struct World {
   void BuildChunkMesh(render::ChunkBuildContext* ctx, s32 chunk_x, s32 chunk_y, s32 chunk_z);
   void EnqueueChunk(s32 chunk_x, s32 chunk_y, s32 chunk_z);
   void FreeMeshes();
+
+  BlockState* GetBlockAt(Vector3i pos);
 };
 
 } // namespace world
