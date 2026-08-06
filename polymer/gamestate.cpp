@@ -196,6 +196,11 @@ void GameState::SubmitFrame() {
 }
 
 void GameState::ProcessMovement(float dt, InputState* input) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
   const float kMoveSpeed = 20.0f;
   const float kSprintModifier = 1.3f;
 
@@ -246,83 +251,110 @@ void GameState::ProcessMovement(float dt, InputState* input) {
 
     float height = 1.8;
 
-    auto pos = camera.position + movement;
+    auto pos = player->position + movement;
 
-    BlockState* state = world.GetBlockAt({(int)floorf(pos.x), (int)floorf(pos.y - height), (int)floorf(pos.z)});
+    BlockState* state = world.GetBlockAt({(int)floorf(pos.x), (int)floorf(pos.y), (int)floorf(pos.z)});
 
     if (state && state->id != BLOCK_AIR) {
-      pos.y = (int)floorf(pos.y - height) + 1 + height;
+      pos.y = (int)floorf(pos.y) + 1;
     }
 
-    camera.position = pos;
+    player->position = pos;
   }
 
   position_sync_timer += dt;
 
   // Send position packets when in spectator for testing chunk loading.
   // TODO: Implement for real
-  if (player_manager.client_player && player_manager.client_player->gamemode == 3) {
+  if (player && player->gamemode == 3) {
     if (position_sync_timer >= (50.0f / 1000.0f)) {
-      float yaw = Degrees(camera.yaw) - 90.0f;
-      float pitch = -Degrees(camera.pitch);
+      float yaw = Degrees(player->look.x) - 90.0f;
+      float pitch = -Degrees(player->look.y);
 
       PlayerMoveFlags move_flags = PlayerMoveFlag_Position | PlayerMoveFlag_Look;
 
-      outbound::play::SendPlayerPositionAndRotation(connection, camera.position - Vector3f(0, 1.62f, 0.0f), yaw, pitch,
+      outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch,
                                                     move_flags);
       position_sync_timer = 0.0f;
     }
   }
+
+  UpdateCamera();
+}
+
+void GameState::UpdateCamera() {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  camera.position = player->position + Vector3f{0, player->eye_height, 0};
+  camera.yaw = player->look.x;
+  camera.pitch = player->look.y;
 }
 
 void GameState::OnWindowMouseMove(s32 dx, s32 dy) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
   const float kSensitivity = 0.005f;
   constexpr float kMaxPitch = Radians(89.0f);
 
-  camera.yaw += dx * kSensitivity;
-  camera.pitch -= dy * kSensitivity;
+  player->look.x += dx * kSensitivity;
+  player->look.y -= dy * kSensitivity;
 
-  if (camera.pitch > kMaxPitch) {
-    camera.pitch = kMaxPitch;
-  } else if (camera.pitch < -kMaxPitch) {
-    camera.pitch = -kMaxPitch;
+  if (player->look.y > kMaxPitch) {
+    player->look.y = kMaxPitch;
+  } else if (player->look.y < -kMaxPitch) {
+    player->look.y = -kMaxPitch;
   }
+
+  UpdateCamera();
 }
 
 void GameState::OnPlayerPositionAndLook(const Vector3f& position, const Vector3f& velocity, float yaw, float pitch,
                                         u32 flags) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
   if (flags & TeleportFlag_RelativeX) {
-    camera.position.x += position.x;
+    player->position.x += position.x;
   } else {
-    camera.position.x = position.x;
+    player->position.x = position.x;
   }
 
   if (flags & TeleportFlag_RelativeY) {
-    camera.position.y += position.y;
+    player->position.y += position.y;
   } else {
-    camera.position.y = position.y + 1.62f;
+    player->position.y = position.y + 1.62f;
   }
 
   if (flags & TeleportFlag_RelativeZ) {
-    camera.position.z += position.z;
+    player->position.z += position.z;
   } else {
-    camera.position.z = position.z;
+    player->position.z = position.z;
   }
 
   if (flags & TeleportFlag_RelativeYaw) {
-    camera.yaw += Radians(yaw);
+    player->look.x += Radians(yaw);
   } else {
-    camera.yaw = Radians(yaw + 90.0f);
+    player->look.x = Radians(yaw + 90.0f);
   }
 
   if (flags & TeleportFlag_RelativePitch) {
-    camera.pitch += Radians(pitch);
+    player->look.y += Radians(pitch);
   } else {
-    camera.pitch = -Radians(pitch);
+    player->look.y = -Radians(pitch);
   }
 
   // TODO: Velocity
   // TODO: RotateDelta
+
+  UpdateCamera();
 }
 
 void GameState::OnDimensionChange() {

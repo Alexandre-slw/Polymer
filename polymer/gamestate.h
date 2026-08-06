@@ -12,6 +12,10 @@
 #include <polymer/world/block.h>
 #include <polymer/world/dimension.h>
 #include <polymer/world/world.h>
+#include <cmath>
+#include <vulkan/vulkan_core.h>
+#include "render/render.h"
+#include "render/render_pass.h"
 
 namespace polymer {
 
@@ -20,6 +24,13 @@ struct MemoryArena;
 struct Player {
   char name[17];
   char uuid[16];
+
+  Vector3f position;
+  Vector2f look;
+
+  float width = 0.6f;
+  float height = 1.8f;
+  float eye_height = 1.62f;
 
   u8 ping;
   u8 gamemode;
@@ -85,6 +96,8 @@ struct GameState {
 
   void Update(float dt, InputState* input);
   void ProcessMovement(float dt, InputState* input);
+
+  void UpdateCamera();
 
   void SubmitFrame();
 };
