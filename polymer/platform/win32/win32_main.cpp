@@ -103,11 +103,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       break;
     }
 
-    if (wParam == 'W') {
+    if (wParam == 'W' || wParam == 'Z') {
       g_input.forward = true;
     } else if (wParam == 'S') {
       g_input.backward = true;
-    } else if (wParam == 'A') {
+    } else if (wParam == 'A' || wParam == 'Q') {
       g_input.left = true;
     } else if (wParam == 'D') {
       g_input.right = true;
@@ -122,11 +122,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
   } break;
   case WM_KEYUP: {
-    if (wParam == 'W') {
+    if (wParam == 'W' || wParam == 'Z') {
       g_input.forward = false;
     } else if (wParam == 'S') {
       g_input.backward = false;
-    } else if (wParam == 'A') {
+    } else if (wParam == 'A' || wParam == 'Q') {
       g_input.left = false;
     } else if (wParam == 'D') {
       g_input.right = false;
