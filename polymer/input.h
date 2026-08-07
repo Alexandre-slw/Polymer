@@ -9,6 +9,7 @@ struct InputState {
   bool left;
   bool right;
   bool climb;
+  bool jumping;
   bool fall;
   bool sprint;
   bool display_players;

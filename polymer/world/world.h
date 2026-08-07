@@ -60,6 +60,7 @@ struct World {
   void EnqueueChunk(s32 chunk_x, s32 chunk_y, s32 chunk_z);
   void FreeMeshes();
 
+  bool ChunkLoadedAt(Vector3i pos);
   BlockState* GetBlockAt(Vector3i pos);
   BoundingBox* GetBoundingBoxAt(Vector3i pos);
 };

@@ -302,6 +302,23 @@ void World::FreeMeshes() {
   }
 }
 
+bool World::ChunkLoadedAt(Vector3i pos) {
+  s32 chunk_x = (s32)floorf(pos.x / 16.0f);
+  s32 chunk_z = (s32)floorf(pos.z / 16.0f);
+  s32 chunk_y = (s32)floorf(pos.y / 16.0f) + 4;
+
+  u32 x_index = GetChunkCacheIndex(chunk_x);
+  u32 z_index = GetChunkCacheIndex(chunk_z);
+
+  ChunkSection* section = &chunks[z_index][x_index];
+
+  if (!section->info->loaded || (section->info->x != chunk_x || section->info->z != chunk_z)) {
+    return false;
+  }
+
+  return true;
+}
+
 BlockState* World::GetBlockAt(Vector3i pos) {
   s32 chunk_x = (s32)floorf(pos.x / 16.0f);
   s32 chunk_z = (s32)floorf(pos.z / 16.0f);

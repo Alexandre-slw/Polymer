@@ -19,6 +19,8 @@
 #include "world/chunk.h"
 #include "world/block.h"
 #include <cstdlib>
+#include <iostream>
+#include <algorithm>
 using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
@@ -303,21 +305,77 @@ void GameState::ResolvePenetration() {
   }
 }
 
+bool GameState::IsPlayerGrounded() {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return false;
+  }
+
+  constexpr float groundProbe = 0.001f;
+  constexpr float horizontalInset = 0.001f;
+
+  auto playerBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+
+  BoundingBox box{{playerBox.min.x + horizontalInset, playerBox.min.y, playerBox.min.z + horizontalInset},
+      {playerBox.max.x - horizontalInset, playerBox.min.y + groundProbe, playerBox.max.z - horizontalInset}};
+
+  auto minX = (int)floor(box.min.x);
+  auto maxX = (int)floor(box.max.x);
+  auto minY = (int)floor(box.min.y) - 1;
+  auto maxY = (int)floor(box.max.y);
+  auto minZ = (int)floor(box.min.z);
+  auto maxZ = (int)floor(box.max.z);
+
+  for (int x = minX; x <= maxX; x++) {
+    for (int z = minZ; z <= maxZ; z++) {
+      for (int y = minY; y <= maxY; y++) {
+        auto block = world.GetBoundingBoxAt({x, y, z});
+        if (!block) {
+          continue;
+        }
+
+        if (box.Intersects(*block)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 void GameState::ProcessMovement(float dt, InputState* input) {
   auto player = player_manager.client_player;
   if (!player) {
     return;
   }
 
+  bool chunkLoaded = world.ChunkLoadedAt({(int)floor(player->position.x), (int)floor(player->position.y), (int)floor(player->position.z)});
+
   ResolvePenetration();
 
-  const float kMoveSpeed = 10.0f;
-  const float kSprintModifier = 1.3f;
+  bool on_ground = player->velocity.y <= 0 && IsPlayerGrounded();
+  if (on_ground && !player->on_ground) {
+    player->fall_time = 0;
+    player->velocity.y = 0;
+  }
+  player->on_ground = on_ground;
+
+  constexpr float kMoveSpeed = 5.0f;
+  constexpr float kSprintModifier = 1.5f;
+  constexpr float gravity = 31.0f;
+  constexpr float terminalVelocity = 60.0f;
+  constexpr float jumpHeight = 1.25f;
+  const float jumpVelocity = std::sqrt(2.0f * gravity * jumpHeight);
 
   Vector3f movement;
 
-  // gravity
-  movement += Vector3f{0, -0.5, 0};
+  if (chunkLoaded && !player->on_ground) {
+    player->fall_time += dt;
+
+    player->velocity -= Vector3f{0, gravity * dt, 0};
+    player->velocity.y = std::max(player->velocity.y, -terminalVelocity);
+  }
 
   if (input->forward) {
     movement += camera.GetForwardXZ();
@@ -339,25 +397,33 @@ void GameState::ProcessMovement(float dt, InputState* input) {
     movement += right;
   }
 
-  if (input->climb) {
-    movement += Vector3f(0, 1, 0);
+if (input->jumping) {
+    if (player->on_ground) {
+        player->velocity.y = jumpVelocity;
+    }
+    input->jumping = false;
   }
 
   if (input->fall) {
     movement -= Vector3f(0, 1, 0);
   }
 
+  if (movement.LengthSqXZ() > 1) {
+    movement = NormalizeXZ(movement);
+  }
+
+  movement += player->velocity;
+
   if (movement.LengthSq() > 0) {
-    if (movement.Length() > 1) {
-      movement = NormalizeXZ(movement);
-    }
 
     float modifier = kMoveSpeed;
     if (input->sprint) {
       modifier *= kSprintModifier;
     }
 
-    movement *= (dt * modifier);
+    movement.x *= (dt * modifier);
+    movement.y *= dt;
+    movement.z *= (dt * modifier);
 
     MoveAndCollide(movement);
   }

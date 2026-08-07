@@ -25,8 +25,12 @@ struct Player {
   char name[17];
   char uuid[16];
 
-  Vector3f position;
-  Vector2f look;
+  Vector3f velocity{};
+  Vector3f position{};
+  Vector2f look{};
+
+  bool on_ground = false;
+  float fall_time = 0.0f;
 
   float width = 0.6f;
   float height = 1.8f;
@@ -112,6 +116,7 @@ struct GameState {
 private:
   void ResolvePenetration();
   void UpdateCamera();
+  bool IsPlayerGrounded();
 };
 
 } // namespace polymer

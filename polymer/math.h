@@ -322,6 +322,10 @@ struct Vector3f {
     return x * x + y * y + z * z;
   }
 
+  inline float LengthSqXZ() const {
+    return x * x + z * z;
+  }
+
   inline float Distance(const Vector3f& other) const {
     float dx = x - other.x;
     float dy = y - other.y;

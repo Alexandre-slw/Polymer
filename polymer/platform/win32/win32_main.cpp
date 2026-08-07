@@ -113,6 +113,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       g_input.right = true;
     } else if (wParam == VK_SPACE) {
       g_input.climb = true;
+      g_input.jumping = true;
     } else if (wParam == VK_SHIFT) {
       g_input.fall = true;
     } else if (wParam == VK_CONTROL) {
