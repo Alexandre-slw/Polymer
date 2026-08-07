@@ -8,8 +8,12 @@
 #include <xmmintrin.h>
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
+#include <limits>
 
 constexpr float kPi = 3.14159265f;
+
+constexpr float kEpsilon = 0.00000001f;
 
 namespace polymer {
 
@@ -265,6 +269,13 @@ struct Vector3f {
     return *this;
   }
 
+  inline Vector3f& operator*=(const Vector3f& other) {
+    x *= other.x;
+    y *= other.y;
+    z *= other.z;
+    return *this;
+  }
+
   inline Vector3f& operator*=(float value) {
     x *= value;
     y *= value;
@@ -285,6 +296,10 @@ struct Vector3f {
 
   inline Vector3f operator-(const Vector3f& other) const {
     return Vector3f(x - other.x, y - other.y, z - other.z);
+  }
+
+  inline Vector3f operator*(const Vector3f& other) const {
+    return Vector3f(x * other.x, y * other.y, z * other.z);
   }
 
   inline Vector3f operator-() const {
@@ -540,6 +555,18 @@ struct IntRect {
   int bottom;
 };
 
+struct Slab {
+  bool valid;
+  float enter;
+  float exit;
+};
+
+struct BoundingBoxRaycastHit {
+  bool hit;
+  float fraction;
+  Vector3f movementMask;
+};
+
 struct BoundingBox {
   Vector3f min;
   Vector3f max;
@@ -551,6 +578,58 @@ struct BoundingBox {
 
   inline BoundingBox MinkowskiDifference(BoundingBox& other) const {
     return BoundingBox{min - other.max, max - other.min};
+  }
+
+  inline BoundingBox Combine(BoundingBox& other) const {
+      return BoundingBox{{std::min(min.x, other.min.x), std::min(min.y, other.min.y), std::min(min.z, other.min.z)},
+                       {std::max(max.x, other.max.x), std::max(max.y, other.max.y), std::max(max.z, other.max.z)}
+    };
+  }
+
+  inline Slab CalculateSlab(float min, float max, float value) const {
+    if (std::abs(value) < kEpsilon) {
+      if (min < 0 && 0 < max) {
+        float enter = -std::numeric_limits<float>::infinity();
+        float exit = std::numeric_limits<float>::infinity();
+        return {true, enter, exit};
+      } else {
+        return {false, 0, 0};
+      }
+    } else {
+      float t1 = min / value;
+      float t2 = max / value;
+      float enter = std::min(t1, t2);
+      float exit = std::max(t1, t2);
+      return {true, enter, exit};
+    }
+  }
+
+  inline BoundingBoxRaycastHit Raycast(Vector3f& direction) const {
+    auto x = CalculateSlab(min.x, max.x, direction.x);
+    auto y = CalculateSlab(min.y, max.y, direction.y);
+    auto z = CalculateSlab(min.z, max.z, direction.z);
+
+    if (!x.valid || !y.valid || !z.valid) {
+        return {false, 0, {}};
+    }
+
+    auto enter = std::max(std::max(x.enter, y.enter), z.enter);
+    auto exit = std::min(std::min(x.exit, y.exit), z.exit);
+
+    if (enter >= 0 && enter <= 1 && enter <= exit) {
+      Vector3f movementMask;
+      if (enter == y.enter) {
+        movementMask = {1, 0, 1};
+      }else if (enter == x.enter) {
+        movementMask = {0, 1, 1};
+      } else {
+        movementMask = {1, 1, 0};
+      }
+
+      return {true, enter, movementMask};
+    }
+
+    return {false, 0, {}};
   }
 
   inline Vector3f ClosestPointOnBoundsToPoint(Vector3f& point) const {

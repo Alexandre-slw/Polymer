@@ -17,9 +17,8 @@
 #include "render/swapchain.h"
 #include "types.h"
 #include "world/chunk.h"
-#include <iostream>
-#include <algorithm>
 #include "world/block.h"
+#include <cstdlib>
 using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
@@ -197,7 +196,66 @@ void GameState::SubmitFrame() {
   }
 }
 
-void GameState::HandleCollision() {
+void GameState::MoveAndCollide(Vector3f& movement) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  Vector3f remaining = movement;
+
+  for (int i = 0; i < 10; i++) {
+    auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+    auto nextPlayerBoundingBox = playerBoundingBox + remaining;
+    auto sweptBoundingBox = playerBoundingBox.Combine(nextPlayerBoundingBox);
+
+    auto minX = (int)floor(sweptBoundingBox.min.x);
+    auto maxX = (int)floor(sweptBoundingBox.max.x);
+    auto minY = (int)floor(sweptBoundingBox.min.y);
+    auto maxY = (int)floor(sweptBoundingBox.max.y);
+    auto minZ = (int)floor(sweptBoundingBox.min.z);
+    auto maxZ = (int)floor(sweptBoundingBox.max.z);
+  
+    Vector3f movementMask{1, 1, 1};
+    float hitFraction = -1;
+
+    for (int x = minX; x <= maxX; x++) {
+      for (int z = minZ; z <= maxZ; z++) {
+        for (int y = minY; y <= maxY; y++) {
+          auto blockBoundingBox = world.GetBoundingBoxAt({x, y, z});
+          if (!blockBoundingBox) {
+            continue;
+          }
+
+          auto minkowski = blockBoundingBox->MinkowskiDifference(playerBoundingBox);
+
+          auto raycast = minkowski.Raycast(remaining);
+
+          if (raycast.hit && (raycast.fraction < hitFraction || hitFraction < 0)) {
+            hitFraction = raycast.fraction;
+            movementMask = raycast.movementMask;
+          }
+        }
+      }
+    }
+
+    if (hitFraction < 0) {
+      player->position += remaining;
+      break;
+    }
+
+    player->position += remaining * hitFraction;
+
+    remaining *= (1 - hitFraction);
+    remaining *= movementMask;
+
+    if (abs(remaining.LengthSq()) < kEpsilon * kEpsilon) {
+      break;
+    }
+  }
+}
+
+void GameState::ResolvePenetration() {
   auto player = player_manager.client_player;
   if (!player) {
     return;
@@ -223,7 +281,7 @@ void GameState::HandleCollision() {
             continue;
           }
 
-          auto minkowski = playerBoundingBox.MinkowskiDifference(*blockBoundingBox); // TODO: swept
+          auto minkowski = blockBoundingBox->MinkowskiDifference(playerBoundingBox);
 
           if (minkowski.min.x < 0 && minkowski.max.x > 0 && minkowski.min.y < 0 && minkowski.max.y > 0 &&
               minkowski.min.z < 0 && minkowski.max.z > 0) {
@@ -240,7 +298,8 @@ void GameState::HandleCollision() {
     if (correction.LengthSq() == 0) {
       break;
     }
-    player->position -= correction;
+
+    player->position += correction;
   }
 }
 
@@ -250,7 +309,9 @@ void GameState::ProcessMovement(float dt, InputState* input) {
     return;
   }
 
-  const float kMoveSpeed = 20.0f;
+  ResolvePenetration();
+
+  const float kMoveSpeed = 10.0f;
   const float kSprintModifier = 1.3f;
 
   Vector3f movement;
@@ -298,9 +359,7 @@ void GameState::ProcessMovement(float dt, InputState* input) {
 
     movement *= (dt * modifier);
 
-    player->position += movement;
-
-    HandleCollision();
+    MoveAndCollide(movement);
   }
 
   position_sync_timer += dt;
