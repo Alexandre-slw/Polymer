@@ -61,6 +61,7 @@ struct World {
   void FreeMeshes();
 
   BlockState* GetBlockAt(Vector3i pos);
+  BoundingBox* GetBoundingBoxAt(Vector3i pos);
 };
 
 } // namespace world

@@ -35,6 +35,15 @@ struct Player {
   u8 ping;
   u8 gamemode;
   bool listed;
+
+  inline BoundingBox getBoundingBox() {
+    float halfWidth = width / 2.0f;
+    float halfHeight = height / 2.0f;
+
+    Vector3f halfBox{halfWidth, halfHeight, halfWidth};
+
+    return {position - halfBox, position + halfBox};
+  }
 };
 
 struct PlayerManager {
@@ -96,6 +105,7 @@ struct GameState {
 
   void Update(float dt, InputState* input);
   void ProcessMovement(float dt, InputState* input);
+  void HandleCollision();
 
   void UpdateCamera();
 

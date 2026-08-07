@@ -18,6 +18,8 @@
 #include "types.h"
 #include "world/chunk.h"
 #include <iostream>
+#include <algorithm>
+#include "world/block.h"
 using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
@@ -103,7 +105,7 @@ GameState::GameState(render::VulkanRenderer* renderer, MemoryArena* perm_arena, 
     : perm_arena(perm_arena), trans_arena(trans_arena), connection(*perm_arena), renderer(renderer),
       block_registry(*perm_arena), assets(), world(*trans_arena, *renderer, assets, block_registry),
       chat_window(*trans_arena) {
-  camera.near = 0.1f;
+  camera.near = 0.07f;
   camera.far = 1024.0f;
   camera.fov = Radians(80.0f);
 
@@ -195,6 +197,53 @@ void GameState::SubmitFrame() {
   }
 }
 
+void GameState::HandleCollision() {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  for (int i = 0; i < 10; i++) {
+    auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+
+    auto minX = (int)floor(playerBoundingBox.min.x);
+    auto maxX = (int)floor(playerBoundingBox.max.x);
+    auto minY = (int)floor(playerBoundingBox.min.y);
+    auto maxY = (int)floor(playerBoundingBox.max.y);
+    auto minZ = (int)floor(playerBoundingBox.min.z);
+    auto maxZ = (int)floor(playerBoundingBox.max.z);
+
+    Vector3f correction{0, 0, 0};
+
+    for (int x = minX; x <= maxX; x++) {
+      for (int z = minZ; z <= maxZ; z++) {
+        for (int y = minY; y <= maxY; y++) {
+          auto blockBoundingBox = world.GetBoundingBoxAt({x, y, z});
+          if (!blockBoundingBox) {
+            continue;
+          }
+
+          auto minkowski = playerBoundingBox.MinkowskiDifference(*blockBoundingBox); // TODO: swept
+
+          if (minkowski.min.x < 0 && minkowski.max.x > 0 && minkowski.min.y < 0 && minkowski.max.y > 0 &&
+              minkowski.min.z < 0 && minkowski.max.z > 0) {
+            auto vec = minkowski.ClosestPointOnBoundsToPoint(Vector3f{0, 0, 0});
+
+            if (vec.LengthSq() > correction.LengthSq()) {
+              correction = vec;
+            }
+          }
+        }
+      }
+    }
+
+    if (correction.LengthSq() == 0) {
+      break;
+    }
+    player->position -= correction;
+  }
+}
+
 void GameState::ProcessMovement(float dt, InputState* input) {
   auto player = player_manager.client_player;
   if (!player) {
@@ -210,21 +259,21 @@ void GameState::ProcessMovement(float dt, InputState* input) {
   movement += Vector3f{0, -0.5, 0};
 
   if (input->forward) {
-    movement += camera.GetForward();
+    movement += camera.GetForwardXZ();
   }
 
   if (input->backward) {
-    movement -= camera.GetForward();
+    movement -= camera.GetForwardXZ();
   }
 
   if (input->left) {
-    Vector3f forward = camera.GetForward();
+    Vector3f forward = camera.GetForwardXZ();
     Vector3f right = Normalize(forward.Cross(Vector3f(0, 1, 0)));
     movement -= right;
   }
 
   if (input->right) {
-    Vector3f forward = camera.GetForward();
+    Vector3f forward = camera.GetForwardXZ();
     Vector3f right = Normalize(forward.Cross(Vector3f(0, 1, 0)));
     movement += right;
   }
@@ -249,17 +298,9 @@ void GameState::ProcessMovement(float dt, InputState* input) {
 
     movement *= (dt * modifier);
 
-    float height = 1.8;
+    player->position += movement;
 
-    auto pos = player->position + movement;
-
-    BlockState* state = world.GetBlockAt({(int)floorf(pos.x), (int)floorf(pos.y), (int)floorf(pos.z)});
-
-    if (state && state->id != BLOCK_AIR) {
-      pos.y = (int)floorf(pos.y) + 1;
-    }
-
-    player->position = pos;
+    HandleCollision();
   }
 
   position_sync_timer += dt;

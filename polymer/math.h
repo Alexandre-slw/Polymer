@@ -6,6 +6,8 @@
 #include <math.h>
 #include <string.h>
 #include <xmmintrin.h>
+#include <cmath>
+#include <cstdlib>
 
 constexpr float kPi = 3.14159265f;
 
@@ -545,6 +547,43 @@ struct BoundingBox {
   inline bool Intersects(const BoundingBox& b) const {
     return (min.x <= b.max.x && max.x >= b.min.x && min.y <= b.max.y && max.y >= b.min.y && min.z <= b.max.z &&
             max.z >= b.min.z);
+  }
+
+  inline BoundingBox MinkowskiDifference(BoundingBox& other) const {
+    return BoundingBox{min - other.max, max - other.min};
+  }
+
+  inline Vector3f ClosestPointOnBoundsToPoint(Vector3f& point) const {
+    auto minDist = std::abs(point.x - min.x);
+    auto boundsPoint = Vector3f{min.x, point.y, point.z};
+    if (std::abs(max.x - point.x) < minDist) {
+      minDist = std::abs(max.x - point.x);
+      boundsPoint = Vector3f{max.x, point.y, point.z};
+    }
+    if (std::abs(max.y - point.y) < minDist) {
+      minDist = std::abs(max.y - point.y);
+      boundsPoint = Vector3f{point.x, max.y, point.z};
+    }
+    if (std::abs(min.y - point.y) < minDist) {
+      minDist = std::abs(min.y - point.y);
+      boundsPoint = Vector3f{point.x, min.y, point.z};
+    }
+    if (std::abs(min.z - point.z) < minDist) {
+      minDist = std::abs(min.z - point.z);
+      boundsPoint = Vector3f{point.x, point.y, min.z};
+    }
+    if (std::abs(max.z - point.z) < minDist) {
+      minDist = std::abs(max.z - point.z);
+      boundsPoint = Vector3f{point.x, point.y, max.z};
+    }
+    return boundsPoint;
+  }
+
+  inline BoundingBox operator+(const Vector3f& vec) {
+    return BoundingBox{
+        {min.x + vec.x, min.y + vec.y, min.z + vec.z},
+        {max.x + vec.x, max.y + vec.y, max.z + vec.z},
+    };
   }
 };
 

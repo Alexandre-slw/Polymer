@@ -19,6 +19,10 @@ struct Camera {
     return Vector3f(cosf(yaw) * cosf(pitch), sinf(pitch), sinf(yaw) * cosf(pitch));
   }
 
+  inline Vector3f GetForwardXZ() const {
+    return Vector3f(cosf(yaw), 0, sinf(yaw));
+  }
+
   inline mat4 GetViewMatrix() const {
     static const Vector3f kWorldUp(0, 1, 0);
 

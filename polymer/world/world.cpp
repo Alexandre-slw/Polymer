@@ -1,4 +1,16 @@
 #include "world.h"
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <polymer/asset/asset_system.h>
+#include <polymer/math.h>
+#include <polymer/memory.h>
+#include <polymer/render/block_mesher.h>
+#include <polymer/render/chunk_renderer.h>
+#include <polymer/render/render.h>
+#include <polymer/types.h>
+#include "block.h"
+#include "chunk.h"
 
 namespace polymer {
 namespace world {
@@ -291,7 +303,6 @@ void World::FreeMeshes() {
 }
 
 BlockState* World::GetBlockAt(Vector3i pos) {
-
   s32 chunk_x = (s32)floorf(pos.x / 16.0f);
   s32 chunk_z = (s32)floorf(pos.z / 16.0f);
   s32 chunk_y = (s32)floorf(pos.y / 16.0f) + 4;
@@ -326,9 +337,19 @@ BlockState* World::GetBlockAt(Vector3i pos) {
   if (section->chunks[chunk_y]) {
     bid = section->chunks[chunk_y]->blocks[relative_y][relative_z][relative_x];
   }
-
   
   return &block_registry.states[bid];
+}
+
+BoundingBox* World::GetBoundingBoxAt(Vector3i pos) {
+  BlockState* state = GetBlockAt(pos);
+
+  if (state && state->id != BLOCK_AIR) {
+    return new BoundingBox{Vector3f{(float)pos.x, (float)pos.y, (float)pos.z},
+                           Vector3f{(float)pos.x + 1, (float)pos.y + 1, (float)pos.z + 1}};
+  }
+
+  return nullptr;
 }
 
 } // namespace world
