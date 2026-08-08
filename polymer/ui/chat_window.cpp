@@ -5,8 +5,10 @@
 #include <polymer/memory.h>
 #include <polymer/render/font_renderer.h>
 #include <polymer/unicode.h>
-
-#include <chrono>
+#include <string.h>
+#include <polymer/protocol.h>
+#include <polymer/types.h>
+#include <polymer/util.h>
 
 namespace polymer {
 namespace ui {
@@ -16,13 +18,9 @@ const u64 kSecondNanoseconds = 1000LL * 1000LL * 1000LL;
 const u64 kDisplayNanoseconds = kSecondNanoseconds * 10LL;
 const int kLineHeight = 18;
 
-inline static u64 GetNow() {
-  return std::chrono::high_resolution_clock::now().time_since_epoch().count();
-}
-
 void ChatWindow::RenderSlice(render::FontRenderer& font_renderer, size_t start_index, size_t count, bool fade) {
   const int kEmptyLinesBelow = 4;
-  u64 now = GetNow();
+  u64 now = GetNowNano();
 
   for (size_t i = 0; i < count && i < message_count; ++i) {
     size_t index = (start_index - i - 1 + kChatMessageQueueSize) % kChatMessageQueueSize;
@@ -76,7 +74,7 @@ void ChatWindow::Update(render::FontRenderer& font_renderer) {
       font_renderer.RenderText(Vector3f(8, bottom, 0), WString(input.message, input.length), style, color);
     }
 
-    u64 now_ms = GetNow() / (1000 * 1000);
+    u64 now_ms = GetNowNano() / (1000 * 1000);
 
     if (now_ms % 500 < 250) {
       float text_width = (float)font_renderer.GetTextWidth(WString(input.message, input_cursor_index));
@@ -206,7 +204,7 @@ void ChatWindow::PushMessage(const wchar* mesg, size_t mesg_length) {
 
   memcpy(chat_message->message, mesg, mesg_length * sizeof(wchar));
   chat_message->message_length = mesg_length;
-  chat_message->timestamp = GetNow();
+  chat_message->timestamp = GetNowNano();
 }
 
 } // namespace ui

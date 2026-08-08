@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <chrono>
+
+using namespace std::chrono;
 
 namespace polymer {
 
@@ -53,5 +56,13 @@ struct HashSha1 {
 };
 
 HashSha1 Sha1(const String& contents);
+
+inline static u64 GetNowNano() {
+  return std::chrono::high_resolution_clock::now().time_since_epoch().count();
+}
+
+inline static u64 GetNowMillis() {
+  return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
 
 } // namespace polymer

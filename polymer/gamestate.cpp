@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
+#include "util.h"
 using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
@@ -454,11 +455,9 @@ void GameState::ProcessMovement(float dt, InputState* input) {
     movement += right;
   }
 
-if (input->jumping) {
-    if (player->on_ground) {
-        player->velocity.y = jumpVelocity;
-    }
-    input->jumping = false;
+  if (player->on_ground && GetNowMillis() - input->jump_time < 100) {
+    player->velocity.y = jumpVelocity;
+    input->jump_time = 0;
   }
 
   if (input->fall) {

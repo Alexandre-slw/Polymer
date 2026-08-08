@@ -27,6 +27,16 @@
 
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
+#include <ShlObj_core.h>
+#include <cstdio>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_win32.h>
+#include <polymer/input.h>
+#include <polymer/math.h>
+#include <polymer/memory.h>
+#include <polymer/platform/platform.h>
+#include <polymer/ui/chat_window.h>
+#include <polymer/util.h>
 
 namespace polymer {
 
@@ -113,7 +123,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       g_input.right = true;
     } else if (wParam == VK_SPACE) {
       g_input.climb = true;
-      g_input.jumping = true;
+      g_input.jump_time = GetNowMillis();
     } else if (wParam == VK_SHIFT) {
       g_input.fall = true;
     } else if (wParam == VK_CONTROL) {
