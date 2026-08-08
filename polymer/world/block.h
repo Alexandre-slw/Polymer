@@ -4,6 +4,8 @@
 #include <polymer/hashmap.h>
 #include <polymer/math.h>
 #include <polymer/types.h>
+#include <algorithm>
+#include <polymer/memory.h>
 
 namespace polymer {
 namespace world {
@@ -124,11 +126,19 @@ struct BlockElement {
   inline RenderableFace& GetFace(BlockFace face) {
     return faces[(size_t)face];
   }
+
+  inline BoundingBox GetBoundingBox(const Vector3i& rotation, const Vector3f& atPos) const {
+    auto p0 = RotateAxis(from, rotation.x, rotation.y);
+    auto p1 = RotateAxis(to, rotation.x, rotation.y);
+    return {Vector3f{std::min(p0.x, p1.x), std::min(p0.y, p1.y), std::min(p0.z, p1.z)} + atPos,
+            Vector3f{std::max(p0.x, p1.x), std::max(p0.y, p1.y), std::max(p0.z, p1.z)} + atPos};
+  }
 };
 
 struct BlockModel {
   size_t element_count;
   BlockElement elements[48];
+  Vector3i rotation;
 
   u32 has_occluding : 1;
   u32 has_transparency : 1;

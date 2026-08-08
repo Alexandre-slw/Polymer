@@ -232,9 +232,9 @@ void GameState::MoveAndCollide(Vector3f& movement) {
           Vector3f pos{(float)x, (float)y, (float)z};
           for (int e = 0; e < block->model.element_count; e++) {
             BlockElement& element = block->model.elements[e];
-            BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
+            auto elementBoundingBox = element.GetBoundingBox(block->model.rotation, pos);
 
-            auto minkowski = blockBoundingBox.MinkowskiDifference(playerBoundingBox);
+            auto minkowski = elementBoundingBox.MinkowskiDifference(playerBoundingBox);
 
             auto raycast = minkowski.Raycast(remaining);
 
@@ -296,9 +296,9 @@ void GameState::ResolvePenetration() {
           Vector3f pos{(float)x, (float)y, (float)z};
           for (int e = 0; e < block->model.element_count; e++) {
             BlockElement& element = block->model.elements[e];
-            BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
+            auto elementBoundingBox = element.GetBoundingBox(block->model.rotation, pos);
 
-            auto minkowski = blockBoundingBox.MinkowskiDifference(playerBoundingBox);
+            auto minkowski = elementBoundingBox.MinkowskiDifference(playerBoundingBox);
 
             if (minkowski.min.x < 0 && minkowski.max.x > 0 && minkowski.min.y < 0 && minkowski.max.y > 0 &&
                 minkowski.min.z < 0 && minkowski.max.z > 0) {
@@ -388,9 +388,9 @@ bool GameState::IsPlayerGrounded() {
         Vector3f pos{(float)x, (float)y, (float)z};
         for (int e = 0; e < block->model.element_count; e++) {
           BlockElement& element = block->model.elements[e];
-          BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
+          auto elementBoundingBox = element.GetBoundingBox(block->model.rotation, pos);
           
-          if (box.Intersects(blockBoundingBox)) {
+          if (box.Intersects(elementBoundingBox)) {
             return true;
           }
         }

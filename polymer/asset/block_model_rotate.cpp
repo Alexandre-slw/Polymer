@@ -211,6 +211,7 @@ void RotateVariant(MemoryArena& perm_arena, world::BlockModel& model, const Pars
   if (!HasRotation(model, parsed_model, rotation, element_start, element_count)) return;
 
   model.has_variant_rotation = rotation.x || rotation.y;
+  model.rotation = rotation;
 
   for (size_t i = 0; i < parsed_model.element_count && i < element_count; ++i) {
     const ParsedBlockElement& element = parsed_model.elements[i];

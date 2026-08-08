@@ -880,6 +880,22 @@ inline mat4 Rotate(const mat4& M, float angle, const Vector3f& rotate_axis) {
   return mat4((float*)values);
 }
 
+inline Vector3f RotateAxis(const Vector3f& v, int x, int y) {
+  const Vector3f origin{0.5f, 0.5f, 0.5f};
+
+  Vector3f result = v - origin;
+
+  if (x != 0) {
+    result = Rotate(result, -Radians((float)x), Vector3f{1, 0, 0});
+  }
+
+  if (y != 0) {
+    result = Rotate(result, -Radians((float)y), Vector3f{0, 1, 0});
+  }
+
+  return result + origin;
+}
+
 inline Vector4f operator*(const mat4& M, const Vector4f& v) {
   Vector4f result;
 
