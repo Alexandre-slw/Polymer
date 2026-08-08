@@ -109,7 +109,7 @@ struct GameState {
 
   void Update(float dt, InputState* input);
   void ProcessMovement(float dt, InputState* input);
-  void MoveAndCollide(Vector3f& movement);
+  void MoveAndCollideWithStepping(Vector3f& movement);
 
   void SubmitFrame();
 
@@ -117,6 +117,7 @@ private:
   void ResolvePenetration();
   void UpdateCamera();
   bool IsPlayerGrounded();
+  void MoveAndCollide(Vector3f& movement);
 };
 
 } // namespace polymer

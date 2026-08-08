@@ -321,6 +321,41 @@ void GameState::ResolvePenetration() {
   }
 }
 
+void GameState::MoveAndCollideWithStepping(Vector3f& movement) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  Vector3f initialPos = player->position;
+
+  MoveAndCollide(movement);
+
+  Vector3f normalPos = player->position;
+  auto normalDiff = normalPos - initialPos;
+
+  if (!player->on_ground || movement.LengthSqXZ() <= kEpsilon || normalDiff.LengthSqXZ() >= movement.LengthSqXZ()) {
+    return;
+  }
+
+  player->position = initialPos;
+
+  constexpr float stepHeight = 0.5f;
+
+  MoveAndCollide(Vector3f{0, stepHeight, 0});
+  MoveAndCollide(Vector3f{movement.x, 0, movement.z});
+  MoveAndCollide(Vector3f{0, -stepHeight, 0});
+
+  Vector3f stepPos = player->position;
+  auto stepDiff = stepPos - initialPos;
+
+  if (stepDiff.LengthSqXZ() > normalDiff.LengthSqXZ()) {
+    return;
+  }
+
+  player->position = normalPos;
+}
+
 bool GameState::IsPlayerGrounded() {
   auto player = player_manager.client_player;
   if (!player) {
@@ -447,7 +482,7 @@ if (input->jumping) {
     movement.y *= dt;
     movement.z *= (dt * modifier);
 
-    MoveAndCollide(movement);
+    MoveAndCollideWithStepping(movement);
   }
 
   position_sync_timer += dt;
