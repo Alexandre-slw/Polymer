@@ -206,7 +206,7 @@ void GameState::MoveAndCollide(Vector3f& movement) {
 
   Vector3f remaining = movement;
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
     auto nextPlayerBoundingBox = playerBoundingBox + remaining;
     auto sweptBoundingBox = playerBoundingBox.Combine(nextPlayerBoundingBox);
@@ -224,18 +224,24 @@ void GameState::MoveAndCollide(Vector3f& movement) {
     for (int x = minX; x <= maxX; x++) {
       for (int z = minZ; z <= maxZ; z++) {
         for (int y = minY; y <= maxY; y++) {
-          auto blockBoundingBox = world.GetBoundingBoxAt({x, y, z});
-          if (!blockBoundingBox) {
+          auto block = world.GetBlockAt({x, y, z});
+          if (!block) {
             continue;
           }
 
-          auto minkowski = blockBoundingBox->MinkowskiDifference(playerBoundingBox);
+          Vector3f pos{(float)x, (float)y, (float)z};
+          for (int e = 0; e < block->model.element_count; e++) {
+            BlockElement& element = block->model.elements[e];
+            BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
 
-          auto raycast = minkowski.Raycast(remaining);
+            auto minkowski = blockBoundingBox.MinkowskiDifference(playerBoundingBox);
 
-          if (raycast.hit && (raycast.fraction < hitFraction || hitFraction < 0)) {
-            hitFraction = raycast.fraction;
-            movementMask = raycast.movementMask;
+            auto raycast = minkowski.Raycast(remaining);
+
+            if (raycast.hit && (raycast.fraction < hitFraction || hitFraction < 0)) {
+              hitFraction = raycast.fraction;
+              movementMask = raycast.movementMask;
+            }
           }
         }
       }
@@ -267,7 +273,7 @@ void GameState::ResolvePenetration() {
     return;
   }
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
 
     auto minX = (int)floor(playerBoundingBox.min.x);
@@ -282,19 +288,25 @@ void GameState::ResolvePenetration() {
     for (int x = minX; x <= maxX; x++) {
       for (int z = minZ; z <= maxZ; z++) {
         for (int y = minY; y <= maxY; y++) {
-          auto blockBoundingBox = world.GetBoundingBoxAt({x, y, z});
-          if (!blockBoundingBox) {
+          auto block = world.GetBlockAt({x, y, z});
+          if (!block) {
             continue;
           }
 
-          auto minkowski = blockBoundingBox->MinkowskiDifference(playerBoundingBox);
+          Vector3f pos{(float)x, (float)y, (float)z};
+          for (int e = 0; e < block->model.element_count; e++) {
+            BlockElement& element = block->model.elements[e];
+            BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
 
-          if (minkowski.min.x < 0 && minkowski.max.x > 0 && minkowski.min.y < 0 && minkowski.max.y > 0 &&
-              minkowski.min.z < 0 && minkowski.max.z > 0) {
-            auto vec = minkowski.ClosestPointOnBoundsToPoint(Vector3f{0, 0, 0});
+            auto minkowski = blockBoundingBox.MinkowskiDifference(playerBoundingBox);
 
-            if (vec.LengthSq() > correction.LengthSq()) {
-              correction = vec;
+            if (minkowski.min.x < 0 && minkowski.max.x > 0 && minkowski.min.y < 0 && minkowski.max.y > 0 &&
+                minkowski.min.z < 0 && minkowski.max.z > 0) {
+              auto vec = minkowski.ClosestPointOnBoundsToPoint(Vector3f{0, 0, 0});
+
+              if (vec.LengthSq() > correction.LengthSq()) {
+                correction = vec;
+              }
             }
           }
         }
@@ -333,13 +345,19 @@ bool GameState::IsPlayerGrounded() {
   for (int x = minX; x <= maxX; x++) {
     for (int z = minZ; z <= maxZ; z++) {
       for (int y = minY; y <= maxY; y++) {
-        auto block = world.GetBoundingBoxAt({x, y, z});
+        auto block = world.GetBlockAt({x, y, z});
         if (!block) {
           continue;
         }
 
-        if (box.Intersects(*block)) {
-          return true;
+        Vector3f pos{(float)x, (float)y, (float)z};
+        for (int e = 0; e < block->model.element_count; e++) {
+          BlockElement& element = block->model.elements[e];
+          BoundingBox blockBoundingBox{element.from + pos, element.to + pos};
+          
+          if (box.Intersects(blockBoundingBox)) {
+            return true;
+          }
         }
       }
     }
