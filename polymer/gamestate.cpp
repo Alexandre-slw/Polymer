@@ -246,6 +246,10 @@ void GameState::MoveAndCollide(Vector3f& movement) {
       break;
     }
 
+    if (movementMask.y == 0) {
+      player->velocity.y = 0;
+    }
+
     player->position += remaining * hitFraction;
 
     remaining *= (1 - hitFraction);
