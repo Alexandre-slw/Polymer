@@ -355,7 +355,7 @@ BlockState* World::GetBlockAt(Vector3i pos) {
 
   u32 bid = 0;
 
-  if (section->chunks[chunk_y]) {
+  if (chunk_y >= 0 && chunk_y < kChunkColumnCount && section->chunks[chunk_y]) {
     bid = section->chunks[chunk_y]->blocks[relative_y][relative_z][relative_x];
   }
   
