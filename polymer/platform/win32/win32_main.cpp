@@ -124,6 +124,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     } else if (wParam == VK_SPACE) {
       g_input.climb = true;
       g_input.jump_time = GetNowMillis();
+      g_input.jumping = true;
     } else if (wParam == VK_SHIFT) {
       g_input.fall = true;
     } else if (wParam == VK_CONTROL) {
@@ -143,6 +144,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       g_input.right = false;
     } else if (wParam == VK_SPACE) {
       g_input.climb = false;
+      g_input.jumping = false;
     } else if (wParam == VK_SHIFT) {
       g_input.fall = false;
     } else if (wParam == VK_CONTROL) {

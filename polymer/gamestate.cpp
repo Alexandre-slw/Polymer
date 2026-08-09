@@ -462,7 +462,7 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
     movement += right;
   }
 
-  if (player->on_ground && GetNowMillis() - input->jump_time < 100) {
+  if (player->on_ground && (GetNowMillis() - input->jump_time < 100 || input->jumping)) {
     player->velocity.y = jumpVelocity;
     input->jump_time = 0;
   }
