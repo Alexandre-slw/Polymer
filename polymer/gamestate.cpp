@@ -233,7 +233,7 @@ void GameState::MoveAndCollide(Vector3f& movement) {
           Vector3f pos{(float)x, (float)y, (float)z};
           for (int e = 0; e < block->model.element_count; e++) {
             BlockElement& element = block->model.elements[e];
-            if (!element.HasThickness()) {
+            if (!element.HasThicknessXZ()) {
               continue;
             }
 
@@ -300,7 +300,7 @@ void GameState::ResolvePenetration() {
           Vector3f pos{(float)x, (float)y, (float)z};
           for (int e = 0; e < block->model.element_count; e++) {
             BlockElement& element = block->model.elements[e];
-            if (!element.HasThickness()) {
+            if (!element.HasThicknessXZ()) {
               continue;
             }
 
@@ -395,7 +395,7 @@ bool GameState::IsPlayerGrounded() {
         Vector3f pos{(float)x, (float)y, (float)z};
         for (int e = 0; e < block->model.element_count; e++) {
           BlockElement& element = block->model.elements[e];
-          if (!element.HasThickness()) {
+          if (!element.HasThicknessXZ()) {
             continue;
           }
 
