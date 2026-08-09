@@ -491,17 +491,12 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
     MoveAndCollideWithStepping(movement);
   }
 
-  // Send position packets when in spectator for testing chunk loading.
-  // TODO: Implement for real
-  if (player && player->gamemode == 3) {
-    float yaw = Degrees(player->look.x) - 90.0f;
-    float pitch = -Degrees(player->look.y);
+  // TODO: Implement for real?
+  float yaw = Degrees(player->look.x) - 90.0f;
+  float pitch = -Degrees(player->look.y);
 
-    PlayerMoveFlags move_flags = PlayerMoveFlag_Position | PlayerMoveFlag_Look;
-
-    outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch,
-                                                move_flags);
-  }
+  PlayerMoveFlags move_flags = PlayerMoveFlag_Position | PlayerMoveFlag_Look;
+  outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch, move_flags);
 }
 
 void GameState::UpdateCamera(float delta_tick) {
