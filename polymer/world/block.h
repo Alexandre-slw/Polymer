@@ -127,6 +127,11 @@ struct BlockElement {
     return faces[(size_t)face];
   }
 
+  inline bool HasThickness() const {
+    auto v = to - from;
+    return v.x > 0 && v.y > 0 && v.z > 0;
+  }
+
   inline BoundingBox GetBoundingBox(const Vector3i& rotation, const Vector3f& atPos) const {
     auto p0 = RotateAxis(from, rotation.x, rotation.y);
     auto p1 = RotateAxis(to, rotation.x, rotation.y);
