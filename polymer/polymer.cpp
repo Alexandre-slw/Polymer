@@ -9,6 +9,20 @@
 #include <polymer/version.h>
 
 #include <chrono>
+#include <string.h>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <ratio>
+#include <volk.h>
+#include <vulkan/vulkan_core.h>
+#include "input.h"
+#include "memory.h"
+#include "network_queue.h"
+#include "platform/args.h"
+#include "render/render_config.h"
+#include "types.h"
 
 namespace polymer {
 
@@ -180,7 +194,13 @@ int Polymer::Run(InputState* input) {
     if (renderer.BeginFrame()) {
       game->font_renderer.BeginFrame(renderer.current_frame);
 
-      game->Update(frame_time / 1000.0f, input);
+      timer.Update(frame_time);
+
+      for (int tick = 0; tick < std::min(timer.GetTicksToProcess(), 10); tick++) {
+        game->Update(timer, input);
+      }
+
+      game->Render(timer.GetDeltaTick(), input);
 
       debug.position = Vector2f(8, 8);
       debug.color = Vector4f(1.0f, 0.67f, 0.0f, 1.0f);

@@ -38,7 +38,11 @@ World::World(MemoryArena& trans_arena, render::VulkanRenderer& renderer, asset::
   }
 }
 
-void World::Update(float dt) {}
+void World::Update() {
+  if (world_tick++ >= 24000) {
+    world_tick = 0;
+  }
+}
 
 void World::OnBlockChange(s32 x, s32 y, s32 z, u32 new_bid) {
   s32 chunk_x = (s32)floorf(x / 16.0f);

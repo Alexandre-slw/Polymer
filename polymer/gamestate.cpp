@@ -22,6 +22,7 @@
 #include <iostream>
 #include <algorithm>
 #include "util.h"
+#include "timer.h"
 using namespace polymer::world;
 
 using polymer::render::kRenderLayerCount;
@@ -111,16 +112,14 @@ GameState::GameState(render::VulkanRenderer* renderer, MemoryArena* perm_arena, 
   camera.far = 1024.0f;
   camera.fov = Radians(80.0f);
 
-  position_sync_timer = 0.0f;
   animation_accumulator = 0.0f;
-  time_accumulator = 0.0f;
 
   renderer->swapchain.RegisterCreateCallback(this, OnSwapchainCreate);
   renderer->swapchain.RegisterCleanupCallback(this, OnSwapchainCleanup);
 }
 
-void GameState::Update(float dt, InputState* input) {
-  ProcessMovement(dt, input);
+void GameState::Render(float delta_tick, InputState* input) {
+  UpdateCamera(delta_tick);
 
   float sunlight = world.GetSunlight();
 
@@ -145,25 +144,22 @@ void GameState::Update(float dt, InputState* input) {
 
   chat_window.Update(font_renderer);
 
-  animation_accumulator += dt;
-  time_accumulator += dt;
+  chunk_renderer.Draw(command_buffer, renderer->current_frame, world, camera, animation_accumulator, sunlight);
+}
+
+void GameState::Update(const Timer& timer, InputState* input) {
+  float deltaTick = timer.GetIntervalSeconds();
+
+  ProcessMovement(deltaTick, input);
+
+  animation_accumulator += deltaTick;
 
   constexpr float kMaxFrame = 256.0f;
   if (animation_accumulator >= kMaxFrame) {
     animation_accumulator -= kMaxFrame;
   }
 
-  if (time_accumulator >= 1.0f / 20.0f) {
-    time_accumulator -= 1.0f / 20.0f;
-
-    if (world.world_tick++ >= 24000) {
-      world.world_tick = 0;
-    }
-  }
-
-  world.Update(dt);
-
-  chunk_renderer.Draw(command_buffer, renderer->current_frame, world, camera, animation_accumulator, sunlight);
+  world.Update();
 }
 
 void GameState::SubmitFrame() {
@@ -411,11 +407,13 @@ bool GameState::IsPlayerGrounded() {
   return false;
 }
 
-void GameState::ProcessMovement(float dt, InputState* input) {
+void GameState::ProcessMovement(float delta_tick, InputState* input) {
   auto player = player_manager.client_player;
   if (!player) {
     return;
   }
+
+  player->previous_position = player->position;
 
   bool chunkLoaded = world.ChunkLoadedAt({(int)floor(player->position.x), (int)floor(player->position.y), (int)floor(player->position.z)});
 
@@ -432,15 +430,15 @@ void GameState::ProcessMovement(float dt, InputState* input) {
   constexpr float kSprintModifier = 1.5f;
   constexpr float gravity = 31.0f;
   constexpr float terminalVelocity = 60.0f;
-  constexpr float jumpHeight = 1.25f;
+  constexpr float jumpHeight = 1.05f;
   const float jumpVelocity = std::sqrt(2.0f * gravity * jumpHeight);
 
   Vector3f movement;
 
   if (chunkLoaded && !player->on_ground) {
-    player->fall_time += dt;
+    player->fall_time += delta_tick;
 
-    player->velocity -= Vector3f{0, gravity * dt, 0};
+    player->velocity -= Vector3f{0, gravity * delta_tick, 0};
     player->velocity.y = std::max(player->velocity.y, -terminalVelocity);
   }
 
@@ -486,40 +484,33 @@ void GameState::ProcessMovement(float dt, InputState* input) {
       modifier *= kSprintModifier;
     }
 
-    movement.x *= (dt * modifier);
-    movement.y *= dt;
-    movement.z *= (dt * modifier);
+    movement.x *= modifier * delta_tick;
+    movement.y *= delta_tick;
+    movement.z *= modifier * delta_tick;
 
     MoveAndCollideWithStepping(movement);
   }
 
-  position_sync_timer += dt;
-
   // Send position packets when in spectator for testing chunk loading.
   // TODO: Implement for real
   if (player && player->gamemode == 3) {
-    if (position_sync_timer >= (50.0f / 1000.0f)) {
-      float yaw = Degrees(player->look.x) - 90.0f;
-      float pitch = -Degrees(player->look.y);
+    float yaw = Degrees(player->look.x) - 90.0f;
+    float pitch = -Degrees(player->look.y);
 
-      PlayerMoveFlags move_flags = PlayerMoveFlag_Position | PlayerMoveFlag_Look;
+    PlayerMoveFlags move_flags = PlayerMoveFlag_Position | PlayerMoveFlag_Look;
 
-      outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch,
-                                                    move_flags);
-      position_sync_timer = 0.0f;
-    }
+    outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch,
+                                                move_flags);
   }
-
-  UpdateCamera();
 }
 
-void GameState::UpdateCamera() {
+void GameState::UpdateCamera(float delta_tick) {
   auto player = player_manager.client_player;
   if (!player) {
     return;
   }
 
-  camera.position = player->position + Vector3f{0, player->eye_height, 0};
+  camera.position = player->previous_position + (player->position - player->previous_position) * delta_tick + Vector3f{0, player->eye_height, 0};
   camera.yaw = player->look.x;
   camera.pitch = player->look.y;
 }
@@ -530,7 +521,9 @@ void GameState::OnWindowMouseMove(s32 dx, s32 dy) {
     return;
   }
 
-  const float kSensitivity = 0.005f;
+  player->previous_look = player->look;
+
+  const float kSensitivity = 0.0025f;
   constexpr float kMaxPitch = Radians(89.0f);
 
   player->look.x += dx * kSensitivity;
@@ -541,8 +534,6 @@ void GameState::OnWindowMouseMove(s32 dx, s32 dy) {
   } else if (player->look.y < -kMaxPitch) {
     player->look.y = -kMaxPitch;
   }
-
-  UpdateCamera();
 }
 
 void GameState::OnPlayerPositionAndLook(const Vector3f& position, const Vector3f& velocity, float yaw, float pitch,
@@ -584,8 +575,6 @@ void GameState::OnPlayerPositionAndLook(const Vector3f& position, const Vector3f
 
   // TODO: Velocity
   // TODO: RotateDelta
-
-  UpdateCamera();
 }
 
 void GameState::OnDimensionChange() {

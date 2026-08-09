@@ -16,6 +16,7 @@
 #include <vulkan/vulkan_core.h>
 #include "render/render.h"
 #include "render/render_pass.h"
+#include "timer.h"
 
 namespace polymer {
 
@@ -25,9 +26,12 @@ struct Player {
   char name[17];
   char uuid[16];
 
-  Vector3f velocity{};
+  Vector3f previous_position{};
+  Vector2f previous_look{};
   Vector3f position{};
   Vector2f look{};
+
+  Vector3f velocity{};
 
   bool on_ground = false;
   float fall_time = 0.0f;
@@ -91,9 +95,7 @@ struct GameState {
   PlayerManager player_manager;
   ui::ChatWindow chat_window;
 
-  float position_sync_timer;
   float animation_accumulator;
-  float time_accumulator;
 
   world::BlockRegistry block_registry;
 
@@ -106,16 +108,18 @@ struct GameState {
   void OnDimensionChange();
 
   void OnWindowMouseMove(s32 dx, s32 dy);
+  
+  void Render(float delta_tick, InputState* input);
 
-  void Update(float dt, InputState* input);
-  void ProcessMovement(float dt, InputState* input);
+  void Update(const Timer& timer, InputState* input);
+  void ProcessMovement(float delta_tick, InputState* input);
   void MoveAndCollideWithStepping(Vector3f& movement);
 
   void SubmitFrame();
 
 private:
   void ResolvePenetration();
-  void UpdateCamera();
+  void UpdateCamera(float delta_tick);
   bool IsPlayerGrounded();
   void MoveAndCollide(Vector3f& movement);
 };

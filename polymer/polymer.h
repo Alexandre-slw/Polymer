@@ -6,6 +6,7 @@
 #include <polymer/render/render.h>
 
 #include <polymer/platform/platform.h>
+#include "timer.h"
 
 namespace polymer {
 
@@ -19,6 +20,7 @@ struct Polymer {
 
   render::VulkanRenderer renderer;
   GameState* game = nullptr;
+  Timer timer{20};
 
   polymer::LaunchArgs args;
 

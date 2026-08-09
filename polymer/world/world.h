@@ -48,7 +48,7 @@ struct World {
     return sunlight * 0.8f + 0.2f;
   }
 
-  void Update(float dt);
+  void Update();
 
   void OnDimensionChange();
   void OnBlockChange(s32 x, s32 y, s32 z, u32 new_bid);
