@@ -254,6 +254,8 @@ void GameState::MoveAndCollide(Vector3f& movement) {
 
     if (movementMask.y == 0) {
       player->velocity.y = 0;
+    } else {
+      player->sprinting = false;
     }
 
     player->position += remaining * hitFraction;
@@ -468,9 +470,16 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
     direction = NormalizeXZ(direction);
   }
 
+  // Set sprinting state
+  if (player->on_ground && input->sprint) {
+    player->sprinting = true;
+  } else if (direction.x == 0 && direction.z == 0) {
+    player->sprinting = false;
+  }
+
   // Apply movement speed modifier
   float modifier = kMoveSpeed;
-  if (input->sprint) {
+  if (player->sprinting) {
     modifier *= kSprintModifier;
 
     // Try to mimick going faster when sprint jumping

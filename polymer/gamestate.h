@@ -33,6 +33,7 @@ struct Player {
 
   Vector3f velocity{};
 
+  bool sprinting = false;
   bool on_ground = false;
   float fall_time = 0.0f;
 
