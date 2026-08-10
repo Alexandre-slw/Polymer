@@ -421,13 +421,15 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   player->previous_position = player->position;
 
   // Get out of blocks
-  ResolvePenetration();
+  if (!player->NoClip()) {
+    ResolvePenetration();
+  }
 
   bool chunkLoaded = world.ChunkLoadedAt({(int)floor(player->position.x), (int)floor(player->position.y), (int)floor(player->position.z)});
   bool jumping = false;
 
   // Track on ground state, reset y velocity and fall time when on ground
-  bool on_ground = player->velocity.y <= 0 && IsPlayerGrounded();
+  bool on_ground = player->NoClip() ? false : player->velocity.y <= 0 && IsPlayerGrounded();
   if (on_ground && !player->on_ground) {
     player->fall_time = 0;
     player->velocity.y = 0;
@@ -494,6 +496,12 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   input->jump_time = 0;
 
   // Fly
+  if (!player->CanFly()) {
+    player->flying = false;
+  } else if (player->NoClip()) {
+    player->flying = true;
+  }
+
   if (player->flying) {
     if (input->jumping) {
       direction.y += 1;
@@ -583,7 +591,11 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
 
   // Apply movement
   if (movement.LengthSq() > 0) {
-    MoveAndCollideWithStepping(movement);
+    if (player->NoClip()) {
+      player->position += movement;
+    } else {
+      MoveAndCollideWithStepping(movement);
+    }
   }
 
   // TODO: Implement for real?

@@ -60,6 +60,10 @@ struct Player {
     // TODO: check actual player's server-sent capabilities
     return gamemode == 1 || gamemode == 3;
   }
+
+  inline bool NoClip() const {
+    return gamemode == 3;
+  }
 };
 
 struct PlayerManager {
