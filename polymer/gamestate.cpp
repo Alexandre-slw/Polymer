@@ -415,10 +415,13 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
 
   player->previous_position = player->position;
 
-  bool chunkLoaded = world.ChunkLoadedAt({(int)floor(player->position.x), (int)floor(player->position.y), (int)floor(player->position.z)});
-
+  // Get out of blocks
   ResolvePenetration();
 
+  bool chunkLoaded = world.ChunkLoadedAt({(int)floor(player->position.x), (int)floor(player->position.y), (int)floor(player->position.z)});
+  bool jumping = false;
+
+  // Track on ground state, reset y velocity and fall time when on ground
   bool on_ground = player->velocity.y <= 0 && IsPlayerGrounded();
   if (on_ground && !player->on_ground) {
     player->fall_time = 0;
@@ -426,68 +429,103 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   }
   player->on_ground = on_ground;
 
+  // Constants
   constexpr float kMoveSpeed = 5.0f;
   constexpr float kSprintModifier = 1.5f;
-  constexpr float gravity = 31.0f;
-  constexpr float terminalVelocity = 60.0f;
-  constexpr float jumpHeight = 1.05f;
-  const float jumpVelocity = std::sqrt(2.0f * gravity * jumpHeight);
+  constexpr float kJumpSpeedBoost = 1.2f;
+  constexpr float kGravity = 31.0f;
+  constexpr float kTerminalVelocity = 60.0f;
+  constexpr float kJumpHeight = 1.05f;
+  constexpr float kAcceleration = 0.5f;
+  constexpr float kDeceleration = 0.3f;
+  constexpr float kAirControl = 0.1f;
+  const float kJumpVelocity = std::sqrt(2.0f * kGravity * kJumpHeight);
 
-  Vector3f movement;
-
-  if (chunkLoaded && !player->on_ground) {
-    player->fall_time += delta_tick;
-
-    player->velocity -= Vector3f{0, gravity * delta_tick, 0};
-    player->velocity.y = std::max(player->velocity.y, -terminalVelocity);
-  }
+  // Compute movement direction
+  Vector3f direction;
 
   if (input->forward) {
-    movement += camera.GetForwardXZ();
+    direction += camera.GetForwardXZ();
   }
 
   if (input->backward) {
-    movement -= camera.GetForwardXZ();
+    direction -= camera.GetForwardXZ();
   }
 
   if (input->left) {
     Vector3f forward = camera.GetForwardXZ();
     Vector3f right = Normalize(forward.Cross(Vector3f(0, 1, 0)));
-    movement -= right;
+    direction -= right;
   }
 
   if (input->right) {
     Vector3f forward = camera.GetForwardXZ();
     Vector3f right = Normalize(forward.Cross(Vector3f(0, 1, 0)));
-    movement += right;
+    direction += right;
   }
 
+  if (direction.LengthSqXZ() > 1) {
+    direction = NormalizeXZ(direction);
+  }
+
+  // Apply movement speed modifier
+  float modifier = kMoveSpeed;
+  if (input->sprint) {
+    modifier *= kSprintModifier;
+
+    // Try to mimick going faster when sprint jumping
+    if (jumping) {
+      modifier *= kJumpSpeedBoost;
+    }
+  }
+  direction.x *= modifier;
+  direction.z *= modifier;
+
+  // Apply acceleration
+  if (player->on_ground) {
+    player->velocity.x += (direction.x - player->velocity.x) * kAcceleration;
+    player->velocity.z += (direction.z - player->velocity.z) * kAcceleration;
+  } else {
+    player->velocity.x += (direction.x - player->velocity.x) * kAirControl;
+    player->velocity.z += (direction.z - player->velocity.z) * kAirControl;
+  }
+
+  // Apply deceleration
+  if (direction.x == 0) {
+    player->velocity.x *= kDeceleration;
+  }
+
+  if (direction.z == 0) {
+    player->velocity.z *= kDeceleration;
+  }
+
+  // Apply gravity, only do it if chunk is loaded to prevent falling under the map before it loaded
+  if (chunkLoaded && !player->on_ground) {
+    player->fall_time += delta_tick;
+
+    player->velocity -= Vector3f{0, kGravity * delta_tick, 0};
+    player->velocity.y = std::max(player->velocity.y, -kTerminalVelocity);
+  }
+
+  // Jump
   if (player->on_ground && (GetNowMillis() - input->jump_time < 100 || input->jumping)) {
-    player->velocity.y = jumpVelocity;
+    player->velocity.y = kJumpVelocity;
     input->jump_time = 0;
+    jumping = true;
   }
 
+  // Compute final movement vector
+  Vector3f movement;
+
+  movement += player->velocity * delta_tick;
+
+  // TODO: fly down
   if (input->fall) {
     movement -= Vector3f(0, 1, 0);
   }
 
-  if (movement.LengthSqXZ() > 1) {
-    movement = NormalizeXZ(movement);
-  }
-
-  movement += player->velocity;
-
+  // Apply movement
   if (movement.LengthSq() > 0) {
-
-    float modifier = kMoveSpeed;
-    if (input->sprint) {
-      modifier *= kSprintModifier;
-    }
-
-    movement.x *= modifier * delta_tick;
-    movement.y *= delta_tick;
-    movement.z *= modifier * delta_tick;
-
     MoveAndCollideWithStepping(movement);
   }
 
