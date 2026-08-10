@@ -126,9 +126,10 @@ static void OnKeyDown(GLFWwindow* window, int key, int scancode, int action, int
     } break;
     case GLFW_KEY_SPACE: {
       g_input.climb = action != GLFW_RELEASE;
+      auto was_jumping = g_input.jumping;
       g_input.jumping = action != GLFW_RELEASE;
 
-      if (g_input.jumping) {
+      if (!was_jumping && g_input.jumping) {
         g_input.jump_time = GetNowMillis();
       }
     } break;

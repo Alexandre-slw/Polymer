@@ -204,7 +204,7 @@ void GameState::MoveAndCollide(Vector3f& movement) {
   Vector3f remaining = movement;
 
   for (int i = 0; i < 3; i++) {
-    auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+    auto playerBoundingBox = player->GetBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
     auto nextPlayerBoundingBox = playerBoundingBox + remaining;
     auto sweptBoundingBox = playerBoundingBox.Combine(nextPlayerBoundingBox);
 
@@ -254,6 +254,9 @@ void GameState::MoveAndCollide(Vector3f& movement) {
 
     if (movementMask.y == 0) {
       player->velocity.y = 0;
+      if (remaining.y < 0) {
+        player->flying = false;
+      }
     } else {
       player->sprinting = false;
     }
@@ -276,7 +279,7 @@ void GameState::ResolvePenetration() {
   }
 
   for (int i = 0; i < 3; i++) {
-    auto playerBoundingBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+    auto playerBoundingBox = player->GetBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
 
     auto minX = (int)floor(playerBoundingBox.min.x);
     auto maxX = (int)floor(playerBoundingBox.max.x);
@@ -370,7 +373,7 @@ bool GameState::IsPlayerGrounded() {
   constexpr float groundProbe = 0.001f;
   constexpr float horizontalInset = 0.001f;
 
-  auto playerBox = player->getBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
+  auto playerBox = player->GetBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
 
   BoundingBox box{{playerBox.min.x + horizontalInset, playerBox.min.y, playerBox.min.z + horizontalInset},
       {playerBox.max.x - horizontalInset, playerBox.min.y + groundProbe, playerBox.max.z - horizontalInset}};
@@ -439,8 +442,12 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   constexpr float kTerminalVelocity = 60.0f;
   constexpr float kJumpHeight = 1.05f;
   constexpr float kAcceleration = 0.5f;
-  constexpr float kDeceleration = 0.3f;
+  constexpr float kDeceleration = 0.5f;
   constexpr float kAirControl = 0.1f;
+  constexpr float kFlyAcceleration = 0.15f;
+  constexpr float kFlyDeceleration = 0.9f;
+  constexpr float kFlyVerticalSpeed = 7.0f;
+  constexpr float kFlySpeedBoost = 1.7f;
   const float kJumpVelocity = std::sqrt(2.0f * kGravity * kJumpHeight);
 
   // Compute movement direction
@@ -467,11 +474,38 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   }
 
   if (direction.LengthSqXZ() > 1) {
-    direction = NormalizeXZ(direction);
+    direction = Normalize(direction);
+  }
+
+  // Jump / Start Flying
+  u64 now = GetNowMillis();
+  bool pressedJumpRecently = now - input->jump_time < 100;
+
+  if (pressedJumpRecently && player->CanFly() && now - player->pressed_jump_at_ms < 300) {
+    player->flying = !player->flying;
+  } else if (player->on_ground && (pressedJumpRecently || input->jumping)) {
+    player->velocity.y = kJumpVelocity;
+    jumping = true;
+  }
+
+  if (pressedJumpRecently) {
+    player->pressed_jump_at_ms = now;
+  }
+  input->jump_time = 0;
+
+  // Fly
+  if (player->flying) {
+    if (input->jumping) {
+      direction.y += 1;
+    }
+
+    if (input->fall) {
+      direction.y -= 1;
+    }
   }
 
   // Set sprinting state
-  if (player->on_ground && input->sprint) {
+  if ((player->on_ground || player->flying) && input->sprint) {
     player->sprinting = true;
   } else if (direction.x == 0 && direction.z == 0) {
     player->sprinting = false;
@@ -486,52 +520,66 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
     if (jumping) {
       modifier *= kJumpSpeedBoost;
     }
+
+    // Go even faster when flying and sprinting
+    if (player->flying) {
+      modifier *= kFlySpeedBoost;
+    }
   }
+
+  if (player->flying) {
+    modifier *= kFlySpeedBoost;
+  }
+
   direction.x *= modifier;
+  direction.y *= modifier;
   direction.z *= modifier;
 
   // Apply acceleration
-  if (player->on_ground) {
-    player->velocity.x += (direction.x - player->velocity.x) * kAcceleration;
-    player->velocity.z += (direction.z - player->velocity.z) * kAcceleration;
-  } else {
-    player->velocity.x += (direction.x - player->velocity.x) * kAirControl;
-    player->velocity.z += (direction.z - player->velocity.z) * kAirControl;
+  auto acceleration = player->on_ground ? kAcceleration : kAirControl;
+  if (player->flying) {
+    acceleration =  kFlyAcceleration;
+  }
+
+  if (direction.x) {
+    player->velocity.x += (direction.x - player->velocity.x) * acceleration;
+  }
+  if (direction.y) {
+    // y always uses kAcceleration so it does not feel too floaty when flying
+    player->velocity.y += (direction.y - player->velocity.y) * kAcceleration;
+  }
+  if (direction.z) {
+    player->velocity.z += (direction.z - player->velocity.z) * acceleration;
   }
 
   // Apply deceleration
+  auto deceleration = player->flying ? kFlyDeceleration : kDeceleration;
+
   if (direction.x == 0) {
-    player->velocity.x *= kDeceleration;
+    player->velocity.x *= deceleration;
+  }
+
+  if (player->flying && direction.y == 0) {
+    // y always uses kDeceleration so it does not feel too floaty when flying
+    player->velocity.y *= kDeceleration;
   }
 
   if (direction.z == 0) {
-    player->velocity.z *= kDeceleration;
+    player->velocity.z *= deceleration;
   }
 
   // Apply gravity, only do it if chunk is loaded to prevent falling under the map before it loaded
-  if (chunkLoaded && !player->on_ground) {
+  if (chunkLoaded && !player->on_ground && !player->flying) {
     player->fall_time += delta_tick;
 
     player->velocity -= Vector3f{0, kGravity * delta_tick, 0};
     player->velocity.y = std::max(player->velocity.y, -kTerminalVelocity);
   }
 
-  // Jump
-  if (player->on_ground && (GetNowMillis() - input->jump_time < 100 || input->jumping)) {
-    player->velocity.y = kJumpVelocity;
-    input->jump_time = 0;
-    jumping = true;
-  }
-
   // Compute final movement vector
   Vector3f movement;
 
   movement += player->velocity * delta_tick;
-
-  // TODO: fly down
-  if (input->fall) {
-    movement -= Vector3f(0, 1, 0);
-  }
 
   // Apply movement
   if (movement.LengthSq() > 0) {

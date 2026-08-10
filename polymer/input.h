@@ -16,6 +16,7 @@ struct InputState {
   bool display_players;
 
   u64 jump_time;
+  bool jump_reset;
 };
 
 } // namespace polymer

@@ -33,9 +33,11 @@ struct Player {
 
   Vector3f velocity{};
 
+  bool flying = false;
   bool sprinting = false;
   bool on_ground = false;
   float fall_time = 0.0f;
+  u64 pressed_jump_at_ms = 0;
 
   float width = 0.6f;
   float height = 1.8f;
@@ -45,13 +47,18 @@ struct Player {
   u8 gamemode;
   bool listed;
 
-  inline BoundingBox getBoundingBox() {
+  inline BoundingBox GetBoundingBox() const {
     float halfWidth = width / 2.0f;
     float halfHeight = height / 2.0f;
 
     Vector3f halfBox{halfWidth, halfHeight, halfWidth};
 
     return {position - halfBox, position + halfBox};
+  }
+
+  inline bool CanFly() const {
+    // TODO: check actual player's server-sent capabilities
+    return gamemode == 1 || gamemode == 3;
   }
 };
 
