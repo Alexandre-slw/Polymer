@@ -2,6 +2,7 @@
 #define POLYMER_CAMERA_H_
 
 #include <polymer/math.h>
+#include <cmath>
 
 namespace polymer {
 

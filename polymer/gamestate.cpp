@@ -514,10 +514,10 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   }
 
   // Set sprinting state
-  if ((player->on_ground || player->flying) && input->sprint) {
-    player->sprinting = true;
-  } else if (direction.x == 0 && direction.z == 0) {
+  if (direction.x == 0 && direction.z == 0) {
     player->sprinting = false;
+  } else if ((player->on_ground || player->flying) && input->sprint) {
+    player->sprinting = true;
   }
 
   // Apply movement speed modifier
@@ -614,8 +614,8 @@ void GameState::UpdateFov() {
   }
 
   constexpr float kFov = 80; // TODO: setting
-  constexpr float kSprintModifier = 1.08f;
-  constexpr float kFlyModifier = 1.04f;
+  constexpr float kSprintModifier = 1.15f;
+  constexpr float kFlyModifier = 1.075f;
 
   auto fov = kFov;
 
