@@ -371,17 +371,18 @@ bool GameState::IsPlayerGrounded() {
     return false;
   }
 
-  constexpr float groundProbe = 0.001f;
+  constexpr float groundProbe = 0.01f;
   constexpr float horizontalInset = 0.001f;
 
   auto playerBox = player->GetBoundingBox() + Vector3f{0, player->height / 2.0f, 0};
 
-  BoundingBox box{{playerBox.min.x + horizontalInset, playerBox.min.y, playerBox.min.z + horizontalInset},
-      {playerBox.max.x - horizontalInset, playerBox.min.y + groundProbe, playerBox.max.z - horizontalInset}};
+
+  BoundingBox box{{playerBox.min.x + horizontalInset, playerBox.min.y - groundProbe, playerBox.min.z + horizontalInset},
+                  {playerBox.max.x - horizontalInset, playerBox.min.y + kEpsilon, playerBox.max.z - horizontalInset}};
 
   auto minX = (int)floor(box.min.x);
   auto maxX = (int)floor(box.max.x);
-  auto minY = (int)floor(box.min.y) - 1;
+  auto minY = (int)floor(box.min.y);
   auto maxY = (int)floor(box.max.y);
   auto minZ = (int)floor(box.min.z);
   auto maxZ = (int)floor(box.max.z);
