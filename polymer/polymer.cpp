@@ -97,10 +97,10 @@ int Polymer::Run(InputState* input) {
 
   render::RenderConfig render_config = {};
 
-  render_config.desired_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+  //render_config.desired_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 
   // Enable this for vsync
-  // render_config.desired_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+  render_config.desired_present_mode = VK_PRESENT_MODE_FIFO_KHR;
 
   render_config.desired_msaa_samples = VK_SAMPLE_COUNT_4_BIT;
   render_config.sample_shading = true;
