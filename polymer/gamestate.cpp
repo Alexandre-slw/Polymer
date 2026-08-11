@@ -681,7 +681,7 @@ void GameState::OnPlayerPositionAndLook(const Vector3f& position, const Vector3f
   if (flags & TeleportFlag_RelativeY) {
     player->position.y += position.y;
   } else {
-    player->position.y = position.y + 1.62f;
+    player->position.y = position.y;
   }
 
   if (flags & TeleportFlag_RelativeZ) {
