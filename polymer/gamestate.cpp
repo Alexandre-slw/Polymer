@@ -152,6 +152,7 @@ void GameState::Update(const Timer& timer, InputState* input) {
 
   ProcessMovement(deltaTick, input);
   UpdateFov();
+  UpdateBob();
 
   animation_accumulator += deltaTick;
 
@@ -254,7 +255,6 @@ void GameState::MoveAndCollide(Vector3f& movement) {
     }
 
     if (movementMask.y == 0) {
-      player->velocity.y = 0;
       if (remaining.y < 0) {
         player->flying = false;
       }
@@ -266,6 +266,8 @@ void GameState::MoveAndCollide(Vector3f& movement) {
 
     remaining *= (1 - hitFraction);
     remaining *= movementMask;
+
+    player->velocity *= movementMask;
 
     if (abs(remaining.LengthSq()) < kEpsilon * kEpsilon) {
       break;
@@ -452,6 +454,7 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   constexpr float kFlyDeceleration = 0.9f;
   constexpr float kFlyVerticalSpeed = 7.0f;
   constexpr float kFlySpeedBoost = 1.7f;
+  constexpr float kWalkTimeSprintBoost = 1.5f;
   const float kJumpVelocity = std::sqrt(2.0f * kGravity * kJumpHeight);
 
   // Compute movement direction
@@ -517,8 +520,17 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   // Set sprinting state
   if (direction.x == 0 && direction.z == 0) {
     player->sprinting = false;
-  } else if ((player->on_ground || player->flying) && input->sprint) {
-    player->sprinting = true;
+    player->walk_time = 0;
+  } else if ((player->on_ground || player->flying)) {
+    if (input->sprint) {
+      player->sprinting = true;
+    }
+
+    player->walk_time += delta_tick * (player->sprinting ? kWalkTimeSprintBoost : 1.0f);
+  }
+
+  if (!player->on_ground) {
+    player->walk_time = 0;
   }
 
   // Apply movement speed modifier
@@ -631,17 +643,69 @@ void GameState::UpdateFov() {
   camera.SetFov(fov);
 }
 
+void GameState::UpdateBob() const {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  constexpr float kPitchAmplitude = 0.05f;
+  constexpr float kRollAmplitude = 0.1f;
+  constexpr float kHorizontalAmplitude = 0.05f;
+  constexpr float kVerticalAmplitude = 0.15f;
+  constexpr float kBobFrequency = 7.0f;
+  constexpr float kBobDeceleration = 0.5f;
+
+  float bobX = 0.0f;
+  float bobY = 0.0f;
+  float bobPitch = 0.0f;
+  float bobRoll = 0.0f;
+
+  player->previous_bob = player->bob;
+  player->previous_bob_rotation = player->bob_rotation;
+
+  if (!player->flying && player->walk_time && player->on_ground && player->velocity.LengthSqXZ() > kEpsilon) {
+    float phase = player->walk_time * kBobFrequency;
+
+    player->bob_rotation.y = sinf(phase * 2.0f) * kPitchAmplitude;
+    player->bob_rotation.z = sinf(phase) * kRollAmplitude;
+
+    player->bob.x = sin(phase) * kHorizontalAmplitude;
+    player->bob.y = abs(sin(phase)) * kVerticalAmplitude;
+  } else {
+    player->bob_rotation *= kBobDeceleration;
+    player->bob *= kBobDeceleration;
+  }
+}
+
 void GameState::UpdateCamera(const Timer& timer) {
   auto player = player_manager.client_player;
   if (!player) {
     return;
   }
 
-  camera.position = player->previous_position + (player->position - player->previous_position) * timer.GetDeltaTick() +
+  constexpr float kFovAnimFactor = 0.011f;
+
+  auto dt = timer.GetDeltaTick();
+
+  float bobX = player->previous_bob.x + (player->bob.x - player->previous_bob.x) * dt;
+  float bobY = player->previous_bob.y + (player->bob.y - player->previous_bob.y) * dt;
+  float bobPitch = player->previous_bob_rotation.y + (player->bob_rotation.y - player->previous_bob_rotation.y) * dt;
+  float bobRoll = player->previous_bob_rotation.z + (player->bob_rotation.z - player->previous_bob_rotation.z) * dt;
+
+  camera.position = player->previous_position + (player->position - player->previous_position) * dt +
                     Vector3f{0, player->eye_height, 0};
+
   camera.yaw = player->look.x;
-  camera.pitch = player->look.y;
-  camera.fov += (camera.target_fov - camera.fov) * 0.011f * timer.GetDeltaFrame();
+  camera.pitch = player->look.y + Radians(bobPitch);
+  camera.roll = Radians(bobRoll);
+  camera.fov += (camera.target_fov - camera.fov) * kFovAnimFactor * timer.GetDeltaFrame();
+
+  Vector3f forward = camera.GetForwardXZ();
+  Vector3f right = Normalize(forward.Cross(Vector3f{0, 1, 0}));
+
+  camera.position += right * bobX;
+  camera.position.y += bobY;
 }
 
 void GameState::OnWindowMouseMove(s32 dx, s32 dy) {

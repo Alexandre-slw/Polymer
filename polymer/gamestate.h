@@ -31,6 +31,14 @@ struct Player {
   Vector3f position{};
   Vector2f look{};
 
+  Vector3f previous_bob{};
+  Vector3f bob{};
+
+  Vector3f previous_bob_rotation{};
+  Vector3f bob_rotation{};
+
+  float walk_time;
+
   Vector3f velocity{};
 
   bool flying = false;
@@ -126,6 +134,7 @@ struct GameState {
   void Update(const Timer& timer, InputState* input);
   void ProcessMovement(float delta_tick, InputState* input);
   void UpdateFov();
+  void UpdateBob() const;
   void MoveAndCollideWithStepping(Vector3f& movement);
 
   void SubmitFrame();

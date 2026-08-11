@@ -10,6 +10,7 @@ struct Camera {
   Vector3f position;
   float yaw;
   float pitch;
+  float roll;
   float fov;
 
   float target_fov;
@@ -30,7 +31,12 @@ struct Camera {
 
     Vector3f front(cosf(yaw) * cosf(pitch), sinf(pitch), sinf(yaw) * cosf(pitch));
 
-    return LookAt(Vector3f(0, 0, 0), front, kWorldUp);
+    Vector3f side = Normalize(front.Cross(kWorldUp));
+    Vector3f up = Normalize(side.Cross(front));
+
+    Vector3f rolledUp = up * cosf(roll) + side * sinf(roll);
+
+    return LookAt(Vector3f(0, 0, 0), front, rolledUp);
   }
 
   inline mat4 GetProjectionMatrix() const {
@@ -50,11 +56,16 @@ struct Camera {
 
     Vector3f front(cosf(yaw) * cosf(pitch), sinf(pitch), sinf(yaw) * cosf(pitch));
 
-    Vector3f forward = Normalize(front);
-    Vector3f side = Normalize(forward.Cross(kWorldUp));
-    Vector3f up = Normalize(side.Cross(forward));
+    Vector3f side = Normalize(front.Cross(kWorldUp));
+    Vector3f up = Normalize(side.Cross(front));
 
-    return Frustum(position, forward, near, far, fov, aspect_ratio, up, side);
+    float c = cosf(roll);
+    float s = sinf(roll);
+
+    Vector3f rolledUp = up * c + side * s;
+    Vector3f rolledSide = side * c - up * s;
+
+    return Frustum(position, front, near, far, fov, aspect_ratio, rolledUp, rolledSide);
   }
 };
 
