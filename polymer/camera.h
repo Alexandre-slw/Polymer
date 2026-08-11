@@ -9,8 +9,9 @@ struct Camera {
   Vector3f position;
   float yaw;
   float pitch;
-
   float fov;
+
+  float target_fov;
   float aspect_ratio;
   float near;
   float far;
@@ -33,6 +34,14 @@ struct Camera {
 
   inline mat4 GetProjectionMatrix() const {
     return Perspective(fov, aspect_ratio, near, far);
+  }
+
+  inline void SetFov(float f) {
+    target_fov = Radians(f);
+
+    if (!fov) {
+      fov = target_fov;
+    }
   }
 
   inline Frustum GetViewFrustum() const {

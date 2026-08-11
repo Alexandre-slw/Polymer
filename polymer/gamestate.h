@@ -121,17 +121,18 @@ struct GameState {
 
   void OnWindowMouseMove(s32 dx, s32 dy);
   
-  void Render(float delta_tick, InputState* input);
+  void Render(const Timer& timer, InputState* input);
 
   void Update(const Timer& timer, InputState* input);
   void ProcessMovement(float delta_tick, InputState* input);
+  void UpdateFov();
   void MoveAndCollideWithStepping(Vector3f& movement);
 
   void SubmitFrame();
 
 private:
   void ResolvePenetration();
-  void UpdateCamera(float delta_tick);
+  void UpdateCamera(const Timer& timer);
   bool IsPlayerGrounded();
   void MoveAndCollide(Vector3f& movement);
 };

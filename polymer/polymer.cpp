@@ -200,7 +200,7 @@ int Polymer::Run(InputState* input) {
         game->Update(timer, input);
       }
 
-      game->Render(timer.GetDeltaTick(), input);
+      game->Render(timer, input);
 
       debug.position = Vector2f(8, 8);
       debug.color = Vector4f(1.0f, 0.67f, 0.0f, 1.0f);

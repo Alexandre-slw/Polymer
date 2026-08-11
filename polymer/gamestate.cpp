@@ -110,7 +110,7 @@ GameState::GameState(render::VulkanRenderer* renderer, MemoryArena* perm_arena, 
       chat_window(*trans_arena) {
   camera.near = 0.07f;
   camera.far = 1024.0f;
-  camera.fov = Radians(80.0f);
+  camera.SetFov(80.0f);
 
   animation_accumulator = 0.0f;
 
@@ -118,8 +118,8 @@ GameState::GameState(render::VulkanRenderer* renderer, MemoryArena* perm_arena, 
   renderer->swapchain.RegisterCleanupCallback(this, OnSwapchainCleanup);
 }
 
-void GameState::Render(float delta_tick, InputState* input) {
-  UpdateCamera(delta_tick);
+void GameState::Render(const Timer& timer, InputState* input) {
+  UpdateCamera(timer);
 
   float sunlight = world.GetSunlight();
 
@@ -151,6 +151,7 @@ void GameState::Update(const Timer& timer, InputState* input) {
   float deltaTick = timer.GetIntervalSeconds();
 
   ProcessMovement(deltaTick, input);
+  UpdateFov();
 
   animation_accumulator += deltaTick;
 
@@ -606,15 +607,40 @@ void GameState::ProcessMovement(float delta_tick, InputState* input) {
   outbound::play::SendPlayerPositionAndRotation(connection, player->position, yaw, pitch, move_flags);
 }
 
-void GameState::UpdateCamera(float delta_tick) {
+void GameState::UpdateFov() {
   auto player = player_manager.client_player;
   if (!player) {
     return;
   }
 
-  camera.position = player->previous_position + (player->position - player->previous_position) * delta_tick + Vector3f{0, player->eye_height, 0};
+  constexpr float kFov = 80; // TODO: setting
+  constexpr float kSprintModifier = 1.08f;
+  constexpr float kFlyModifier = 1.04f;
+
+  auto fov = kFov;
+
+  if (player->sprinting) {
+    fov *= kSprintModifier;
+  }
+
+  if (player->flying) {
+    fov *= kFlyModifier;
+  }
+
+  camera.SetFov(fov);
+}
+
+void GameState::UpdateCamera(const Timer& timer) {
+  auto player = player_manager.client_player;
+  if (!player) {
+    return;
+  }
+
+  camera.position = player->previous_position + (player->position - player->previous_position) * timer.GetDeltaTick() +
+                    Vector3f{0, player->eye_height, 0};
   camera.yaw = player->look.x;
   camera.pitch = player->look.y;
+  camera.fov += (camera.target_fov - camera.fov) * 0.011f * timer.GetDeltaFrame();
 }
 
 void GameState::OnWindowMouseMove(s32 dx, s32 dy) {
